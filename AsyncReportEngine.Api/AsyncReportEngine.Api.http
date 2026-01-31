@@ -1,0 +1,6 @@
+@AsyncReportEngine.Api_HostAddress = http://localhost:5031
+
+GET {{AsyncReportEngine.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
