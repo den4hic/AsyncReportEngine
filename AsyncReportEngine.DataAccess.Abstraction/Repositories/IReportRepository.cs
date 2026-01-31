@@ -1,0 +1,14 @@
+﻿using AsyncReportEngine.Shared.Entities;
+using AsyncReportEngine.Shared.Enum;
+
+namespace AsyncReportEngine.DataAccess.Abstraction.Repositories;
+
+public interface IReportRepository
+{
+    Task<Guid> CreateRequestAsync(Guid requestId, string userId);
+    Task UpdateStatusAsync(Guid requestId, ReportStatus status, string? fileUrl = null, string? error = null);
+    Task<ReportRequest?> GetRequestByIdAsync(Guid requestId);
+    Task<List<ReportRequest>> GetUserRequestsAsync(string userId);
+
+    Task<List<Order>> GetOrdersForReportAsync(DateTime startDate, DateTime endDate);
+}

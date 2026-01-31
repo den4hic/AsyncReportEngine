@@ -1,3 +1,4 @@
+using AsyncReportEngine.Api.Extensions;
 using AsyncReportEngine.DataAccess.Context;
 using AsyncReportEngine.DataAccess.Seeding;
 using Microsoft.AspNetCore.Identity;
@@ -5,13 +6,15 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddDbContext<ReportDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"),
-        b => b.MigrationsAssembly("AsyncReportEngine.DataAccess")));
+//builder.Services.AddDbContext<ReportDbContext>(options =>
+//    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"),
+//        b => b.MigrationsAssembly("AsyncReportEngine.DataAccess")));
 
-builder.Services.AddIdentity<IdentityUser, IdentityRole>()
-    .AddEntityFrameworkStores<ReportDbContext>()
-    .AddDefaultTokenProviders();
+//builder.Services.AddIdentity<IdentityUser, IdentityRole>()
+//    .AddEntityFrameworkStores<ReportDbContext>()
+//    .AddDefaultTokenProviders();
+
+builder.Services.RegisterDependencies(builder.Configuration);
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
