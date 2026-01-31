@@ -1,0 +1,12 @@
+{
+  "dependencies": {
+    "secrets1": {
+      "type": "secrets.user"
+    },
+    "storage1": {
+      "secretStore": null,
+      "type": "storage.emulator",
+      "connectionId": "AzureStorage"
+    }
+  }
+}
