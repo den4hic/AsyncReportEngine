@@ -1,4 +1,5 @@
 using AsyncReportEngine.DataAccess.Context;
+using AsyncReportEngine.DataAccess.Seeding;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
@@ -30,5 +31,21 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+
+using (var scope = app.Services.CreateScope())
+{
+    var services = scope.ServiceProvider;
+    try
+    {
+        var context = services.GetRequiredService<ReportDbContext>();
+
+        context.Database.EnsureCreated();
+
+        await DataSeeder.SeedAsync(context);
+    }
+    catch (Exception)
+    {
+    }
+}
 
 app.Run();
