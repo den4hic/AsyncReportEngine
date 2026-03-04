@@ -3,9 +3,11 @@ using AsyncReportEngine.DataAccess.Context;
 using AsyncReportEngine.DataAccess.Repositories;
 using AsyncReportEngine.Services;
 using AsyncReportEngine.Services.Abstraction;
+using AsyncReportEngine.Shared.MappingProfiles;
 using Azure.Storage.Queues;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace AsyncReportEngine.Api.Extensions;
 
@@ -21,6 +23,12 @@ public static class DependencyInjection
             .AddEntityFrameworkStores<ReportDbContext>()
             .AddDefaultTokenProviders();
 
+        services.AddAutoMapper(config =>
+        {
+            config.AddProfile<CatalogProfile>();
+            config.AddProfile<OrderProfile>();
+        });
+
         services.AddSingleton<QueueClient>(provider =>
         {
             var connectionString = configuration.GetConnectionString("AzureStorage");
@@ -34,8 +42,13 @@ public static class DependencyInjection
         });
 
         services.AddScoped<IQueueService, QueueService>();
+        services.AddScoped<ICatalogService, CatalogService>();
+        services.AddScoped<IOrderService, OrderService>();
 
         services.AddScoped<IReportRepository, ReportRepository>();
+        services.AddScoped<IProductRepository, ProductRepository>();
+        services.AddScoped<IDashboardRepository, DashboardRepository>();
+        services.AddScoped<IOrderRepository, OrderRepository>();
 
         return services;
     }
