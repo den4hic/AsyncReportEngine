@@ -75,6 +75,7 @@ public static class DependencyInjection
         services.AddScoped<IQueueService, QueueService>();
         services.AddScoped<ICatalogService, CatalogService>();
         services.AddScoped<IOrderService, OrderService>();
+        services.AddScoped<ISyncReportService, SyncReportService>();
         services.AddScoped<IAuthService, AuthService>();
 
         services.AddScoped<IReportRepository, ReportRepository>();

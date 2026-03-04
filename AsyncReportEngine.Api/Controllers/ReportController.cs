@@ -1,4 +1,5 @@
 ﻿using AsyncReportEngine.DataAccess.Abstraction.Repositories;
+using AsyncReportEngine.Services;
 using AsyncReportEngine.Services.Abstraction;
 using AsyncReportEngine.Shared.Dtos;
 using AsyncReportEngine.Shared.Dtos.Reports;
@@ -15,11 +16,13 @@ public class ReportsController : ControllerBase
 {
     private readonly IReportRepository repository;
     private readonly IQueueService queueService;
+    private readonly ISyncReportService syncReportService;
 
-    public ReportsController(IReportRepository repository, IQueueService queueService)
+    public ReportsController(IReportRepository repository, IQueueService queueService, ISyncReportService syncReportService)
     {
         this.repository = repository;
         this.queueService = queueService;
+        this.syncReportService = syncReportService;
     }
 
     [HttpPost("request")]
@@ -68,5 +71,24 @@ public class ReportsController : ControllerBase
             request.FileUrl,
             request.ErrorMessage
         });
+    }
+
+    [HttpPost("sync-request")]
+    public async Task<IActionResult> RequestReportSync([FromBody] CreateReportDto request)
+    {
+        try
+        {
+            var filePath = await syncReportService.GenerateReportSyncAsync(request.StartDate, request.EndDate);
+
+            return Ok(new
+            {
+                Message = "Звіт успішно згенеровано синхронно!",
+                File = filePath
+            });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, $"Помилка генерації: {ex.Message}");
+        }
     }
 }
