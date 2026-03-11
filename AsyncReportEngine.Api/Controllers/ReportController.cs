@@ -17,12 +17,41 @@ public class ReportsController : ControllerBase
     private readonly IReportRepository repository;
     private readonly IQueueService queueService;
     private readonly ISyncReportService syncReportService;
+    private readonly IInMemoryQueue inMemoryQueue;
 
-    public ReportsController(IReportRepository repository, IQueueService queueService, ISyncReportService syncReportService)
+    public ReportsController(IReportRepository repository, IQueueService queueService, ISyncReportService syncReportService, IInMemoryQueue inMemoryQueue)
     {
         this.repository = repository;
         this.queueService = queueService;
         this.syncReportService = syncReportService;
+        this.inMemoryQueue = inMemoryQueue;
+    }
+
+    [HttpPost("in-memory-request")]
+    public async Task<IActionResult> RequestInMemoryReport([FromBody] CreateReportDto dto)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "anonymous_user";
+        var requestId = Guid.NewGuid();
+
+        await repository.CreateRequestAsync(requestId, userId);
+
+        var message = new ReportGenerationMessage
+        {
+            RequestId = requestId,
+            StartDate = dto.StartDate,
+            EndDate = dto.EndDate,
+            UserEmail = dto.Email ?? "user@example.com",
+            PartnerId = dto.PartnerIds?.FirstOrDefault()
+        };
+
+        await inMemoryQueue.EnqueueAsync(message);
+
+        return Accepted(new
+        {
+            RequestId = requestId,
+            Status = "Pending",
+            Message = "Report is generating via In-Memory Queue."
+        });
     }
 
     [HttpPost("request")]

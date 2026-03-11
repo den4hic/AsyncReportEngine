@@ -1,4 +1,5 @@
-﻿using AsyncReportEngine.DataAccess.Abstraction.Repositories;
+﻿using AsyncReportEngine.Api.BackgroundServices;
+using AsyncReportEngine.DataAccess.Abstraction.Repositories;
 using AsyncReportEngine.DataAccess.Context;
 using AsyncReportEngine.DataAccess.Repositories;
 using AsyncReportEngine.Services;
@@ -9,7 +10,6 @@ using Azure.Storage.Queues;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 
@@ -62,6 +62,8 @@ public static class DependencyInjection
             };
         });
 
+        services.AddHostedService<InMemoryReportWorker>();
+
         services.AddSingleton<QueueClient>(provider =>
         {
             var connectionString = configuration.GetConnectionString("AzureStorage");
@@ -90,6 +92,8 @@ public static class DependencyInjection
         services.AddScoped<IProductRepository, ProductRepository>();
         services.AddScoped<IDashboardRepository, DashboardRepository>();
         services.AddScoped<IOrderRepository, OrderRepository>();
+
+        services.AddSingleton<IInMemoryQueue, InMemoryQueue>();
 
         return services;
     }
