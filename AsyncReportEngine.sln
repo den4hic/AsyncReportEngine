@@ -17,6 +17,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AsyncReportEngine.Api", "As
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AsyncReportEngine.Worker", "AsyncReportEngine.Worker\AsyncReportEngine.Worker.csproj", "{1EED82F8-6446-4463-984F-138E11EBE401}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AsyncReportEngine.LoadTester", "AsyncReportEngine.LoadTester\AsyncReportEngine.LoadTester.csproj", "{8C5E2BB1-EC4A-4DB6-AAA1-E3D547E596E1}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -111,8 +113,23 @@ Global
 		{1EED82F8-6446-4463-984F-138E11EBE401}.Release|x64.Build.0 = Release|Any CPU
 		{1EED82F8-6446-4463-984F-138E11EBE401}.Release|x86.ActiveCfg = Release|Any CPU
 		{1EED82F8-6446-4463-984F-138E11EBE401}.Release|x86.Build.0 = Release|Any CPU
+		{8C5E2BB1-EC4A-4DB6-AAA1-E3D547E596E1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8C5E2BB1-EC4A-4DB6-AAA1-E3D547E596E1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8C5E2BB1-EC4A-4DB6-AAA1-E3D547E596E1}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{8C5E2BB1-EC4A-4DB6-AAA1-E3D547E596E1}.Debug|x64.Build.0 = Debug|Any CPU
+		{8C5E2BB1-EC4A-4DB6-AAA1-E3D547E596E1}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{8C5E2BB1-EC4A-4DB6-AAA1-E3D547E596E1}.Debug|x86.Build.0 = Debug|Any CPU
+		{8C5E2BB1-EC4A-4DB6-AAA1-E3D547E596E1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8C5E2BB1-EC4A-4DB6-AAA1-E3D547E596E1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8C5E2BB1-EC4A-4DB6-AAA1-E3D547E596E1}.Release|x64.ActiveCfg = Release|Any CPU
+		{8C5E2BB1-EC4A-4DB6-AAA1-E3D547E596E1}.Release|x64.Build.0 = Release|Any CPU
+		{8C5E2BB1-EC4A-4DB6-AAA1-E3D547E596E1}.Release|x86.ActiveCfg = Release|Any CPU
+		{8C5E2BB1-EC4A-4DB6-AAA1-E3D547E596E1}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {3F9AB1C3-5A1E-431E-9A74-BE4D739CA55D}
 	EndGlobalSection
 EndGlobal

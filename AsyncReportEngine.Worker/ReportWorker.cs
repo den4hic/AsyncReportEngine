@@ -1,4 +1,5 @@
 ﻿using AsyncReportEngine.DataAccess.Abstraction.Repositories;
+using AsyncReportEngine.Services.Abstraction;
 using AsyncReportEngine.Shared.Dtos;
 using AsyncReportEngine.Shared.Enum;
 using Azure.Storage.Queues;
@@ -70,7 +71,7 @@ public class ReportWorker : BackgroundService
             try
             {
                 var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-                var orders = await repo.GetOrdersForReportAsync(jobData.StartDate, jobData.EndDate);
+                var orders = await repo.GetOrdersForReportAsync(jobData.StartDate, jobData.EndDate, jobData.PartnerId);
 
                 logger.LogInformation($"[WORKER] Дані отримано: {orders.Count} рядків. Починаю генерацію CSV...");
 
@@ -84,19 +85,20 @@ public class ReportWorker : BackgroundService
                     sb.AppendLine(line);
                 }
 
-                var fileName = $"report_{jobData.RequestId}.csv";
-                var folderPath = Path.Combine(Directory.GetCurrentDirectory(), "GeneratedReports");
-                Directory.CreateDirectory(folderPath);
+                var fileName = $"report_{jobData.PartnerId}_{jobData.RequestId}.csv";
 
-                var filePath = Path.Combine(folderPath, fileName);
-                await File.WriteAllTextAsync(filePath, sb.ToString());
+                var blobService = scope.ServiceProvider.GetRequiredService<IBlobService>();
+
+                logger.LogInformation($"[WORKER] Починаю завантаження {fileName} в Azure Blob Storage...");
+
+                var fileUrl = await blobService.UploadReportAsync(fileName, sb.ToString());
 
                 stopwatch.Stop();
-                var resultInfo = $"Звіт готовий! Розмір: {orders.Count} рядків. Час виконання: {stopwatch.Elapsed.TotalSeconds:F2} сек.";
+                var resultInfo = $"Звіт готовий! Розмір: {orders.Count} рядків. Час: {stopwatch.Elapsed.TotalSeconds:F2} сек.";
 
-                await repo.UpdateStatusAsync(jobData.RequestId, ReportStatus.Completed, fileUrl: filePath);
+                await repo.UpdateStatusAsync(jobData.RequestId, ReportStatus.Completed, fileUrl: fileUrl);
 
-                logger.LogInformation($"[WORKER] {resultInfo} | Файл: {filePath}");
+                logger.LogInformation($"[WORKER] {resultInfo} | URL: {fileUrl}");
             }
             catch (Exception ex)
             {

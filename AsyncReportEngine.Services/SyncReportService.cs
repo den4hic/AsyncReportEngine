@@ -17,7 +17,7 @@ public class SyncReportService : ISyncReportService
     {
         var orders = await reportRepository.GetOrdersForReportAsync(startDate, endDate);
 
-        await Task.Delay(5000);
+        //await Task.Delay(5000);
 
         var sb = new StringBuilder();
         sb.AppendLine("OrderId,Date,Customer,TotalAmount,Status");

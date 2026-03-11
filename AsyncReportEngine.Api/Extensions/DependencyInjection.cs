@@ -4,6 +4,7 @@ using AsyncReportEngine.DataAccess.Repositories;
 using AsyncReportEngine.Services;
 using AsyncReportEngine.Services.Abstraction;
 using AsyncReportEngine.Shared.MappingProfiles;
+using Azure.Storage.Blobs;
 using Azure.Storage.Queues;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
@@ -72,11 +73,18 @@ public static class DependencyInjection
             return client;
         });
 
+        services.AddSingleton<BlobServiceClient>(provider =>
+        {
+            var connectionString = configuration.GetConnectionString("AzureStorage");
+            return new BlobServiceClient(connectionString);
+        });
+
         services.AddScoped<IQueueService, QueueService>();
         services.AddScoped<ICatalogService, CatalogService>();
         services.AddScoped<IOrderService, OrderService>();
         services.AddScoped<ISyncReportService, SyncReportService>();
         services.AddScoped<IAuthService, AuthService>();
+        services.AddScoped<IBlobService, BlobService>();
 
         services.AddScoped<IReportRepository, ReportRepository>();
         services.AddScoped<IProductRepository, ProductRepository>();

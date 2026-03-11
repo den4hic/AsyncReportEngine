@@ -6,4 +6,6 @@ public class ReportGenerationMessage
     public DateTime StartDate { get; set; }
     public DateTime EndDate { get; set; }
     public string UserEmail { get; set; } = string.Empty;
+
+    public int? PartnerId { get; set; }
 }

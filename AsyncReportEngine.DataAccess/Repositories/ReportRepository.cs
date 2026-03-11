@@ -75,4 +75,20 @@ public class ReportRepository : IReportRepository
             .OrderBy(o => o.OrderDate)
             .ToListAsync();
     }
+
+    public async Task<List<Order>> GetOrdersForReportAsync(DateTime startDate, DateTime endDate, int? customerId = null)
+    {
+        var query = context.Orders
+            .Include(o => o.Customer)
+            .Include(o => o.Transactions)
+            .Where(o => o.OrderDate >= startDate && o.OrderDate <= endDate)
+            .AsNoTracking();
+
+        if (customerId.HasValue)
+        {
+            query = query.Where(o => o.CustomerId == customerId.Value);
+        }
+
+        return await query.ToListAsync();
+    }
 }

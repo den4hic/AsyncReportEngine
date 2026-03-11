@@ -91,4 +91,40 @@ public class ReportsController : ControllerBase
             return StatusCode(500, $"Помилка генерації: {ex.Message}");
         }
     }
+
+    [HttpPost("bulk-request")]
+    public async Task<IActionResult> RequestBulkReports([FromBody] CreateReportDto dto)
+    {
+        if (dto.PartnerIds == null || !dto.PartnerIds.Any())
+            return BadRequest("Вкажіть хоча б одного партнера (PartnerIds).");
+
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "anonymous_user";
+        var generatedRequests = new List<object>();
+
+        foreach (var partnerId in dto.PartnerIds)
+        {
+            var requestId = Guid.NewGuid();
+
+            await repository.CreateRequestAsync(requestId, userId);
+
+            var message = new ReportGenerationMessage
+            {
+                RequestId = requestId,
+                StartDate = dto.StartDate,
+                EndDate = dto.EndDate,
+                UserEmail = dto.Email ?? "user@example.com",
+                PartnerId = partnerId
+            };
+
+            await queueService.SendMessageAsync(message);
+
+            generatedRequests.Add(new { RequestId = requestId, PartnerId = partnerId, Status = "Pending" });
+        }
+
+        return Accepted(new
+        {
+            Message = $"Успішно додано {dto.PartnerIds.Count} задач у чергу.",
+            Tasks = generatedRequests
+        });
+    }
 }
