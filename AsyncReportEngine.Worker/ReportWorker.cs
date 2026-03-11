@@ -101,7 +101,7 @@ public class ReportWorker : BackgroundService
                 try
                 {
                     using var httpClient = new HttpClient();
-                    var apiUrl = $"https://localhost:7146/api/reports/{jobData.RequestId}/notify-ready";
+                    var apiUrl = $"https://localhost:7193/api/reports/{jobData.RequestId}/notify-ready";
 
                     var content = new StringContent($"{{\"fileUrl\": \"{fileUrl}\"}}", Encoding.UTF8, "application/json");
                     await httpClient.PostAsync(apiUrl, content);

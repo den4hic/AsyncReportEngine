@@ -3,6 +3,7 @@ using AsyncReportEngine.DataAccess.Abstraction.Repositories;
 using AsyncReportEngine.Services;
 using AsyncReportEngine.Services.Abstraction;
 using AsyncReportEngine.Shared.Dtos;
+using AsyncReportEngine.Shared.Dtos.Notifications;
 using AsyncReportEngine.Shared.Dtos.Reports;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -33,12 +34,12 @@ public class ReportsController : ControllerBase
 
     [HttpPost("{requestId}/notify-ready")]
     [AllowAnonymous]
-    public async Task<IActionResult> NotifyReportReady(Guid requestId, [FromBody] string fileUrl)
+    public async Task<IActionResult> NotifyReportReady(Guid requestId, [FromBody] NotifyReadyDto dto)
     {
         await hubContext.Clients.All.SendAsync("ReportReady", new
         {
             RequestId = requestId,
-            FileUrl = fileUrl
+            FileUrl = dto.FileUrl
         });
 
         return Ok();
@@ -47,27 +48,36 @@ public class ReportsController : ControllerBase
     [HttpPost("in-memory-request")]
     public async Task<IActionResult> RequestInMemoryReport([FromBody] CreateReportDto dto)
     {
+        if (dto.PartnerIds == null || !dto.PartnerIds.Any())
+            return BadRequest("Вкажіть хоча б одного клієнта (CustomerIds).");
+
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "anonymous_user";
-        var requestId = Guid.NewGuid();
+        var generatedRequests = new List<object>();
 
-        await repository.CreateRequestAsync(requestId, userId);
-
-        var message = new ReportGenerationMessage
+        foreach (var customerId in dto.PartnerIds)
         {
-            RequestId = requestId,
-            StartDate = dto.StartDate,
-            EndDate = dto.EndDate,
-            UserEmail = dto.Email ?? "user@example.com",
-            PartnerId = dto.PartnerIds?.FirstOrDefault()
-        };
+            var requestId = Guid.NewGuid();
 
-        await inMemoryQueue.EnqueueAsync(message);
+            await repository.CreateRequestAsync(requestId, userId);
+
+            var message = new ReportGenerationMessage
+            {
+                RequestId = requestId,
+                StartDate = dto.StartDate,
+                EndDate = dto.EndDate,
+                UserEmail = dto.Email ?? "user@example.com",
+                PartnerId = customerId
+            };
+
+            await inMemoryQueue.EnqueueAsync(message);
+
+            generatedRequests.Add(new { RequestId = requestId, CustomerId = customerId, Status = "Pending" });
+        }
 
         return Accepted(new
         {
-            RequestId = requestId,
-            Status = "Pending",
-            Message = "Report is generating via In-Memory Queue."
+            Message = $"Успішно додано {dto.PartnerIds.Count} задач у внутрішню чергу.",
+            Tasks = generatedRequests
         });
     }
 
