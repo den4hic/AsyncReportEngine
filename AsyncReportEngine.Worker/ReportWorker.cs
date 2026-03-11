@@ -98,6 +98,21 @@ public class ReportWorker : BackgroundService
 
                 await repo.UpdateStatusAsync(jobData.RequestId, ReportStatus.Completed, fileUrl: fileUrl);
 
+                try
+                {
+                    using var httpClient = new HttpClient();
+                    var apiUrl = $"https://localhost:7146/api/reports/{jobData.RequestId}/notify-ready";
+
+                    var content = new StringContent($"{{\"fileUrl\": \"{fileUrl}\"}}", Encoding.UTF8, "application/json");
+                    await httpClient.PostAsync(apiUrl, content);
+
+                    logger.LogInformation($"[WORKER] Сигнал SignalR відправлено на API!");
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "[WORKER] Не вдалося відправити сповіщення на API.");
+                }
+
                 logger.LogInformation($"[WORKER] {resultInfo} | URL: {fileUrl}");
             }
             catch (Exception ex)

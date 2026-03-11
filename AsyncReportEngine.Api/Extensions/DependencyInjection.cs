@@ -62,6 +62,7 @@ public static class DependencyInjection
             };
         });
 
+        services.AddSignalR();
         services.AddHostedService<InMemoryReportWorker>();
 
         services.AddSingleton<QueueClient>(provider =>

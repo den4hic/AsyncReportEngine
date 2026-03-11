@@ -1,10 +1,12 @@
-﻿using AsyncReportEngine.DataAccess.Abstraction.Repositories;
+﻿using AsyncReportEngine.Api.Hubs;
+using AsyncReportEngine.DataAccess.Abstraction.Repositories;
 using AsyncReportEngine.Services;
 using AsyncReportEngine.Services.Abstraction;
 using AsyncReportEngine.Shared.Dtos;
 using AsyncReportEngine.Shared.Dtos.Reports;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using System.Security.Claims;
 
 namespace AsyncReportEngine.Api.Controllers;
@@ -18,13 +20,28 @@ public class ReportsController : ControllerBase
     private readonly IQueueService queueService;
     private readonly ISyncReportService syncReportService;
     private readonly IInMemoryQueue inMemoryQueue;
+    private readonly IHubContext<ReportHub> hubContext;
 
-    public ReportsController(IReportRepository repository, IQueueService queueService, ISyncReportService syncReportService, IInMemoryQueue inMemoryQueue)
+    public ReportsController(IReportRepository repository, IQueueService queueService, ISyncReportService syncReportService, IInMemoryQueue inMemoryQueue, IHubContext<ReportHub> hubContext)
     {
         this.repository = repository;
         this.queueService = queueService;
         this.syncReportService = syncReportService;
         this.inMemoryQueue = inMemoryQueue;
+        this.hubContext = hubContext;
+    }
+
+    [HttpPost("{requestId}/notify-ready")]
+    [AllowAnonymous]
+    public async Task<IActionResult> NotifyReportReady(Guid requestId, [FromBody] string fileUrl)
+    {
+        await hubContext.Clients.All.SendAsync("ReportReady", new
+        {
+            RequestId = requestId,
+            FileUrl = fileUrl
+        });
+
+        return Ok();
     }
 
     [HttpPost("in-memory-request")]

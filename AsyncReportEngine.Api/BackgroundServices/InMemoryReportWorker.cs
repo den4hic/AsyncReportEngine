@@ -1,29 +1,33 @@
-﻿using AsyncReportEngine.DataAccess.Abstraction.Repositories;
+﻿using AsyncReportEngine.Api.Hubs;
+using AsyncReportEngine.DataAccess.Abstraction.Repositories;
 using AsyncReportEngine.Services.Abstraction;
 using AsyncReportEngine.Shared.Dtos;
 using AsyncReportEngine.Shared.Enum;
+using Microsoft.AspNetCore.SignalR;
 using System.Text;
 
 namespace AsyncReportEngine.Api.BackgroundServices;
 
 public class InMemoryReportWorker : BackgroundService
 {
-    private readonly IInMemoryQueue _queue;
-    private readonly IServiceScopeFactory _scopeFactory;
-    private readonly ILogger<InMemoryReportWorker> _logger;
+    private readonly IInMemoryQueue queue;
+    private readonly IServiceScopeFactory scopeFactory;
+    private readonly ILogger<InMemoryReportWorker> logger;
+    private readonly IHubContext<ReportHub> hubContext;
 
-    public InMemoryReportWorker(IInMemoryQueue queue, IServiceScopeFactory scopeFactory, ILogger<InMemoryReportWorker> logger)
+    public InMemoryReportWorker(IInMemoryQueue queue, IServiceScopeFactory scopeFactory, ILogger<InMemoryReportWorker> logger, IHubContext<ReportHub> hubContext)
     {
-        _queue = queue;
-        _scopeFactory = scopeFactory;
-        _logger = logger;
+        this.queue = queue;
+        this.scopeFactory = scopeFactory;
+        this.logger = logger;
+        this.hubContext = hubContext;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        _logger.LogInformation("--> [IN-MEMORY WORKER] Запущено. Очікування задач...");
+        logger.LogInformation("--> [IN-MEMORY WORKER] Запущено. Очікування задач...");
 
-        await foreach (var message in _queue.DequeueAsync(stoppingToken))
+        await foreach (var message in queue.DequeueAsync(stoppingToken))
         {
             try
             {
@@ -31,18 +35,18 @@ public class InMemoryReportWorker : BackgroundService
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"[IN-MEMORY WORKER] Помилка обробки задачі {message.RequestId}");
+                logger.LogError(ex, $"[IN-MEMORY WORKER] Помилка обробки задачі {message.RequestId}");
             }
         }
     }
 
     private async Task ProcessJobAsync(ReportGenerationMessage jobData)
     {
-        using var scope = _scopeFactory.CreateScope();
+        using var scope = scopeFactory.CreateScope();
         var repo = scope.ServiceProvider.GetRequiredService<IReportRepository>();
         var blobService = scope.ServiceProvider.GetRequiredService<IBlobService>();
 
-        _logger.LogInformation($"[IN-MEMORY WORKER] Початок генерації звіту {jobData.RequestId}");
+        logger.LogInformation($"[IN-MEMORY WORKER] Початок генерації звіту {jobData.RequestId}");
         await repo.UpdateStatusAsync(jobData.RequestId, ReportStatus.Processing);
 
         var orders = await repo.GetOrdersForReportAsync(jobData.StartDate, jobData.EndDate, jobData.PartnerId);
@@ -62,6 +66,13 @@ public class InMemoryReportWorker : BackgroundService
         var fileUrl = await blobService.UploadReportAsync(fileName, sb.ToString());
 
         await repo.UpdateStatusAsync(jobData.RequestId, ReportStatus.Completed, fileUrl: fileUrl);
-        _logger.LogInformation($"[IN-MEMORY WORKER] Звіт {jobData.RequestId} успішно згенеровано! URL: {fileUrl}");
+
+        await hubContext.Clients.All.SendAsync("ReportReady", new
+        {
+            RequestId = jobData.RequestId,
+            FileUrl = fileUrl
+        });
+
+        logger.LogInformation($"[IN-MEMORY WORKER] Звіт {jobData.RequestId} успішно згенеровано! URL: {fileUrl}");
     }
 }
