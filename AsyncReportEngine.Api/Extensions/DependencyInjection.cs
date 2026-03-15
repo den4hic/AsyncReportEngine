@@ -27,6 +27,8 @@ public static class DependencyInjection
         {
             config.AddProfile<CatalogProfile>();
             config.AddProfile<OrderProfile>();
+            config.AddProfile<PartnerProfile>();
+            config.AddProfile<ReportProfile>();
         });
 
         services.AddIdentityCore<IdentityUser>(options =>
@@ -88,11 +90,15 @@ public static class DependencyInjection
         services.AddScoped<ISyncReportService, SyncReportService>();
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IBlobService, BlobService>();
+        services.AddScoped<IDashboardService, DashboardService>();
+        services.AddScoped<IPartnerService, PartnerService>();
+        services.AddScoped<IReportHistoryService, ReportHistoryService>();
 
         services.AddScoped<IReportRepository, ReportRepository>();
         services.AddScoped<IProductRepository, ProductRepository>();
         services.AddScoped<IDashboardRepository, DashboardRepository>();
         services.AddScoped<IOrderRepository, OrderRepository>();
+        services.AddScoped<IPartnerRepository, PartnerRepository>();
 
         services.AddSingleton<IInMemoryQueue, InMemoryQueue>();
 

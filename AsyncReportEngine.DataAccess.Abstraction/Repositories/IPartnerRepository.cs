@@ -2,8 +2,9 @@
 
 namespace AsyncReportEngine.DataAccess.Abstraction.Repositories;
 
-public interface IOrderRepository
+public interface IPartnerRepository
 {
-    Task<IEnumerable<Order>> GetRecentOrdersAsync(int take);
+    Task<IEnumerable<Customer>> GetAllAsync();
+    Task<Customer?> GetByIdAsync(int id);
     Task<int> GetTotalCountAsync();
 }

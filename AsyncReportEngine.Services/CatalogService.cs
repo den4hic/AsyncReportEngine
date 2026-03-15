@@ -2,7 +2,6 @@
 using AsyncReportEngine.Services.Abstraction;
 using AsyncReportEngine.Shared.Dtos.Dashboards;
 using AsyncReportEngine.Shared.Dtos.Products;
-using AsyncReportEngine.Shared.Entities;
 using AutoMapper;
 
 namespace AsyncReportEngine.Services;

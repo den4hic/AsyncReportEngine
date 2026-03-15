@@ -2,6 +2,7 @@
 using AsyncReportEngine.DataAccess.Context;
 using AsyncReportEngine.Shared.Entities;
 using AsyncReportEngine.Shared.Enum;
+using Azure.Core;
 using Microsoft.EntityFrameworkCore;
 
 namespace AsyncReportEngine.DataAccess.Repositories;
@@ -90,5 +91,21 @@ public class ReportRepository : IReportRepository
         }
 
         return await query.ToListAsync();
+    }
+
+    public async Task<IEnumerable<ReportRequest>> GetUserRequestsHistoryAsync(string userId, int take)
+    {
+        return await context.ReportRequests
+            .OrderByDescending(r => r.CreatedAt)
+            .Take(take)
+            .ToListAsync();
+    }
+
+    public async Task<Dictionary<string, int>> GetRequestsStatusCountsAsync()
+    {
+        return await context.ReportRequests
+            .GroupBy(r => r.Status)
+            .Select(g => new { Status = g.Key.ToString(), Count = g.Count() })
+            .ToDictionaryAsync(k => k.Status, v => v.Count);
     }
 }

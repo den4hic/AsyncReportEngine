@@ -13,4 +13,7 @@ public interface IReportRepository
     Task<List<Order>> GetOrdersForReportAsync(DateTime startDate, DateTime endDate);
 
     Task<List<Order>> GetOrdersForReportAsync(DateTime start, DateTime end, int? partnerId = null);
+
+    Task<IEnumerable<ReportRequest>> GetUserRequestsHistoryAsync(string userId, int take);
+    Task<Dictionary<string, int>> GetRequestsStatusCountsAsync();
 }

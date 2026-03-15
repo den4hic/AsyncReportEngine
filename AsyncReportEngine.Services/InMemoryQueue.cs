@@ -10,11 +10,10 @@ public class InMemoryQueue : IInMemoryQueue
 
     public InMemoryQueue()
     {
-        // Unbounded - черга без ліміту (обмежена лише оперативною пам'яттю сервера)
         var options = new UnboundedChannelOptions
         {
-            SingleWriter = false, // Багато HTTP-запитів можуть писати одночасно
-            SingleReader = true   // Тільки один BackgroundService буде читати
+            SingleWriter = false,
+            SingleReader = true
         };
 
         queue = Channel.CreateUnbounded<ReportGenerationMessage>(options);
@@ -28,7 +27,6 @@ public class InMemoryQueue : IInMemoryQueue
 
     public IAsyncEnumerable<ReportGenerationMessage> DequeueAsync(CancellationToken cancellationToken)
     {
-        // ReadAllAsync автоматично "засинає", якщо черга порожня, і прокидається, коли є дані
         return queue.Reader.ReadAllAsync(cancellationToken);
     }
 }

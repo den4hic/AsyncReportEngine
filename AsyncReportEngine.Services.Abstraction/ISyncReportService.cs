@@ -2,5 +2,5 @@
 
 public interface ISyncReportService
 {
-    Task<string> GenerateReportSyncAsync(DateTime startDate, DateTime endDate);
+    Task<List<string>> GenerateReportSyncAsync(DateTime startDate, DateTime endDate, List<int> customerIds);
 }

@@ -364,3 +364,4 @@ FodyWeavers.xsd
 /AsyncReportEngine.DataAccess/Migrations
 /AsyncReportEngine.Worker/GeneratedReports
 /AsyncReportEngine.LoadTester
+/AsyncReportEngine.Api/GeneratedReports

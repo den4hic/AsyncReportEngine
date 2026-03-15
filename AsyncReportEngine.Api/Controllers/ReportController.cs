@@ -22,14 +22,16 @@ public class ReportsController : ControllerBase
     private readonly ISyncReportService syncReportService;
     private readonly IInMemoryQueue inMemoryQueue;
     private readonly IHubContext<ReportHub> hubContext;
+    private readonly IReportHistoryService historyService;
 
-    public ReportsController(IReportRepository repository, IQueueService queueService, ISyncReportService syncReportService, IInMemoryQueue inMemoryQueue, IHubContext<ReportHub> hubContext)
+    public ReportsController(IReportRepository repository, IQueueService queueService, ISyncReportService syncReportService, IInMemoryQueue inMemoryQueue, IHubContext<ReportHub> hubContext, IReportHistoryService historyService)
     {
         this.repository = repository;
         this.queueService = queueService;
         this.syncReportService = syncReportService;
         this.inMemoryQueue = inMemoryQueue;
         this.hubContext = hubContext;
+        this.historyService = historyService;
     }
 
     [HttpPost("{requestId}/notify-ready")]
@@ -130,22 +132,11 @@ public class ReportsController : ControllerBase
     }
 
     [HttpPost("sync-request")]
-    public async Task<IActionResult> RequestReportSync([FromBody] CreateReportDto request)
+    public async Task<IActionResult> RequestReportSync([FromBody] CreateReportDto dto)
     {
-        try
-        {
-            var filePath = await syncReportService.GenerateReportSyncAsync(request.StartDate, request.EndDate);
+        var fileUrls = await syncReportService.GenerateReportSyncAsync(dto.StartDate, dto.EndDate, dto.PartnerIds);
 
-            return Ok(new
-            {
-                Message = "Звіт успішно згенеровано синхронно!",
-                File = filePath
-            });
-        }
-        catch (Exception ex)
-        {
-            return StatusCode(500, $"Помилка генерації: {ex.Message}");
-        }
+        return Ok(new { files = fileUrls });
     }
 
     [HttpPost("bulk-request")]
@@ -182,5 +173,14 @@ public class ReportsController : ControllerBase
             Message = $"Успішно додано {dto.PartnerIds.Count} задач у чергу.",
             Tasks = generatedRequests
         });
+    }
+
+    [HttpGet("history")]
+    public async Task<IActionResult> GetRecentReportsHistory([FromQuery] int take = 50)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "anonymous_user";
+
+        var history = await historyService.GetUserHistoryAsync(userId, take);
+        return Ok(history);
     }
 }

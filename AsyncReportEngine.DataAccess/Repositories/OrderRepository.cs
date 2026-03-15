@@ -23,4 +23,9 @@ public class OrderRepository : IOrderRepository
             .Take(take)
             .ToListAsync();
     }
+
+    public async Task<int> GetTotalCountAsync()
+    {
+        return await context.Orders.CountAsync();
+    }
 }

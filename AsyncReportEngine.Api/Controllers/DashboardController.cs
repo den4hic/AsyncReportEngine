@@ -9,17 +9,17 @@ namespace AsyncReportEngine.Api.Controllers;
 [Authorize]
 public class DashboardController : ControllerBase
 {
-    private readonly ICatalogService catalogService;
+    private readonly IDashboardService dashboardService;
 
-    public DashboardController(ICatalogService catalogService)
+    public DashboardController(IDashboardService dashboardService)
     {
-        this.catalogService = catalogService;
+        this.dashboardService = dashboardService;
     }
 
-    [HttpGet("stats")]
-    public async Task<IActionResult> GetStats()
+    [HttpGet("summary")]
+    public async Task<IActionResult> GetSystemSummary()
     {
-        var stats = await catalogService.GetDashboardStatsAsync();
-        return Ok(stats);
+        var summary = await dashboardService.GetSystemSummaryAsync();
+        return Ok(summary);
     }
 }

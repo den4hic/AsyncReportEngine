@@ -7,35 +7,39 @@ namespace AsyncReportEngine.Services;
 public class SyncReportService : ISyncReportService
 {
     private readonly IReportRepository reportRepository;
+    private readonly IBlobService blobService;
 
-    public SyncReportService(IReportRepository reportRepository)
+    public SyncReportService(IReportRepository reportRepository, IBlobService blobService)
     {
         this.reportRepository = reportRepository;
+        this.blobService = blobService;
     }
 
-    public async Task<string> GenerateReportSyncAsync(DateTime startDate, DateTime endDate)
+    public async Task<List<string>> GenerateReportSyncAsync(DateTime startDate, DateTime endDate, List<int> customerIds)
     {
-        var orders = await reportRepository.GetOrdersForReportAsync(startDate, endDate);
+        var uploadedFileUrls = new List<string>();
 
-        //await Task.Delay(5000);
-
-        var sb = new StringBuilder();
-        sb.AppendLine("OrderId,Date,Customer,TotalAmount,Status");
-
-        foreach (var order in orders)
+        foreach (var customerId in customerIds)
         {
-            var status = order.Transactions.Any() ? "Paid" : "Unpaid";
-            var line = $"{order.Id},{order.OrderDate:yyyy-MM-dd},{order.Customer?.FirstName} {order.Customer?.LastName},{order.TotalAmount},{status}";
-            sb.AppendLine(line);
+            var orders = await reportRepository.GetOrdersForReportAsync(startDate, endDate, customerId);
+
+            var sb = new StringBuilder();
+            sb.AppendLine("OrderId,Date,Customer,TotalAmount,Status");
+
+            foreach (var order in orders)
+            {
+                var status = order.Transactions.Any() ? "Paid" : "Unpaid";
+                var line = $"{order.Id},{order.OrderDate:yyyy-MM-dd},{order.Customer?.FirstName} {order.Customer?.LastName},{order.TotalAmount},{status}";
+                sb.AppendLine(line);
+            }
+
+            var fileName = $"sync_report_cust_{customerId}_{Guid.NewGuid()}.csv";
+
+            var fileUrl = await blobService.UploadReportAsync(fileName, sb.ToString());
+
+            uploadedFileUrls.Add(fileUrl);
         }
 
-        var fileName = $"sync_report_{Guid.NewGuid()}.csv";
-        var folderPath = Path.Combine(Directory.GetCurrentDirectory(), "GeneratedReports");
-        Directory.CreateDirectory(folderPath);
-
-        var filePath = Path.Combine(folderPath, fileName);
-        await File.WriteAllTextAsync(filePath, sb.ToString());
-
-        return filePath;
+        return uploadedFileUrls;
     }
 }
