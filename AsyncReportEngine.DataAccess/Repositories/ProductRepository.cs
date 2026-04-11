@@ -5,31 +5,20 @@ using Microsoft.EntityFrameworkCore;
 
 namespace AsyncReportEngine.DataAccess.Repositories;
 
-public class ProductRepository : IProductRepository
+public class ProductRepository : Repository<Product>, IProductRepository
 {
-    private readonly ReportDbContext context;
+    public ProductRepository(ReportDbContext context) : base(context) { }
 
-    public ProductRepository(ReportDbContext context)
-    {
-        this.context = context;
-    }
-
-    public async Task<IEnumerable<Product>> GetProductsAsync(int skip, int take)
+    public async Task<IEnumerable<Product>> GetPagedProductsAsync(int skip, int take)
     {
         return await context.Products
             .AsNoTracking()
             .Include(p => p.Category)
+            .Include(p => p.Supplier)
+            .OrderBy(p => p.Id)
             .Skip(skip)
             .Take(take)
             .ToListAsync();
-    }
-
-    public async Task<Product?> GetByIdAsync(int id)
-    {
-        return await context.Products
-            .AsNoTracking()
-            .Include(p => p.Category)
-            .FirstOrDefaultAsync(p => p.Id == id);
     }
 
     public async Task<int> GetTotalCountAsync() => await context.Products.CountAsync();

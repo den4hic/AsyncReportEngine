@@ -1,6 +1,5 @@
 ﻿using AsyncReportEngine.Api.Hubs;
 using AsyncReportEngine.DataAccess.Abstraction.Repositories;
-using AsyncReportEngine.Services;
 using AsyncReportEngine.Services.Abstraction;
 using AsyncReportEngine.Shared.Dtos;
 using AsyncReportEngine.Shared.Dtos.Notifications;
@@ -175,12 +174,29 @@ public class ReportsController : ControllerBase
         });
     }
 
-    [HttpGet("history")]
-    public async Task<IActionResult> GetRecentReportsHistory([FromQuery] int take = 50)
-    {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "anonymous_user";
+    //[HttpGet("history")]
+    //public async Task<IActionResult> GetRecentReportsHistory([FromQuery] int take = 50)
+    //{
+    //    var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "anonymous_user";
 
-        var history = await historyService.GetUserHistoryAsync(userId, take);
-        return Ok(history);
+    //    var history = await historyService.GetUserHistoryAsync(userId, take);
+    //    return Ok(history);
+    //}
+     
+    [HttpGet("history")]
+    public async Task<IActionResult> GetHistoryPaged(
+    [FromQuery] int page = 1,
+    [FromQuery] int pageSize = 10,
+    [FromQuery] string? status = null)
+    {
+        var pagedHistory = await historyService.GetHistoryPagedAsync(page, pageSize, status);
+        return Ok(pagedHistory);
+    }
+
+    [HttpGet("stats")]
+    public async Task<IActionResult> GetDashboardStats()
+    {
+        var stats = await historyService.GetStatsAsync();
+        return Ok(stats);
     }
 }

@@ -94,11 +94,15 @@ public static class DependencyInjection
         services.AddScoped<IPartnerService, PartnerService>();
         services.AddScoped<IReportHistoryService, ReportHistoryService>();
 
+        services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
+
         services.AddScoped<IReportRepository, ReportRepository>();
         services.AddScoped<IProductRepository, ProductRepository>();
         services.AddScoped<IDashboardRepository, DashboardRepository>();
         services.AddScoped<IOrderRepository, OrderRepository>();
         services.AddScoped<IPartnerRepository, PartnerRepository>();
+        services.AddScoped<ICategoryRepository, CategoryRepository>();
+        services.AddScoped<ISupplierRepository, SupplierRepository>();
 
         services.AddSingleton<IInMemoryQueue, InMemoryQueue>();
 

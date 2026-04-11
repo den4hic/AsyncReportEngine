@@ -108,4 +108,32 @@ public class ReportRepository : IReportRepository
             .Select(g => new { Status = g.Key.ToString(), Count = g.Count() })
             .ToDictionaryAsync(k => k.Status, v => v.Count);
     }
+
+    public async Task<(List<ReportRequest> Items, int TotalCount)> GetRequestsPagedAsync(int skip, int take, ReportStatus? status)
+    {
+        var query = context.ReportRequests.AsQueryable();
+
+        if (status.HasValue)
+        {
+            query = query.Where(r => r.Status == status.Value);
+        }
+
+        var totalCount = await query.CountAsync();
+
+        var items = await query
+            .OrderByDescending(r => r.CreatedAt)
+            .Skip(skip)
+            .Take(take)
+            .ToListAsync();
+
+        return (items, totalCount);
+    }
+
+    public async Task<Dictionary<ReportStatus, int>> GetRequestsStatsAsync()
+    {
+        return await context.ReportRequests
+            .GroupBy(r => r.Status)
+            .Select(g => new { Status = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(k => k.Status, v => v.Count);
+    }
 }

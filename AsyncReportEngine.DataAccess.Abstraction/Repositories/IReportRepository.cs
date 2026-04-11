@@ -16,4 +16,7 @@ public interface IReportRepository
 
     Task<IEnumerable<ReportRequest>> GetUserRequestsHistoryAsync(string userId, int take);
     Task<Dictionary<string, int>> GetRequestsStatusCountsAsync();
+
+    Task<(List<ReportRequest> Items, int TotalCount)> GetRequestsPagedAsync(int skip, int take, ReportStatus? status);
+    Task<Dictionary<ReportStatus, int>> GetRequestsStatsAsync();
 }

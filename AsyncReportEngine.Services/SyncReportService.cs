@@ -17,29 +17,39 @@ public class SyncReportService : ISyncReportService
 
     public async Task<List<string>> GenerateReportSyncAsync(DateTime startDate, DateTime endDate, List<int> customerIds)
     {
-        var uploadedFileUrls = new List<string>();
-
-        foreach (var customerId in customerIds)
+        var tasks = customerIds.Select(async customerId =>
         {
-            var orders = await reportRepository.GetOrdersForReportAsync(startDate, endDate, customerId);
+            return await ProcessSingleCustomerReportAsync(startDate, endDate, customerId);
+        });
 
-            var sb = new StringBuilder();
-            sb.AppendLine("OrderId,Date,Customer,TotalAmount,Status");
+        var results = await Task.WhenAll(tasks);
 
-            foreach (var order in orders)
-            {
-                var status = order.Transactions.Any() ? "Paid" : "Unpaid";
-                var line = $"{order.Id},{order.OrderDate:yyyy-MM-dd},{order.Customer?.FirstName} {order.Customer?.LastName},{order.TotalAmount},{status}";
-                sb.AppendLine(line);
-            }
+        return results.ToList();
+    }
 
-            var fileName = $"sync_report_cust_{customerId}_{Guid.NewGuid()}.csv";
+    private async Task<string> ProcessSingleCustomerReportAsync(DateTime startDate, DateTime endDate, int customerId)
+    {
+        Fibonacci(40);
 
-            var fileUrl = await blobService.UploadReportAsync(fileName, sb.ToString());
+        var orders = await reportRepository.GetOrdersForReportAsync(startDate, endDate, customerId);
 
-            uploadedFileUrls.Add(fileUrl);
+        var sb = new StringBuilder();
+        sb.AppendLine("OrderId,Date,Customer,TotalAmount,Status");
+
+        foreach (var order in orders)
+        {
+            var status = order.Transactions.Any() ? "Paid" : "Unpaid";
+            var line = $"{order.Id},{order.OrderDate:yyyy-MM-dd},{order.Customer?.FirstName} {order.Customer?.LastName},{order.TotalAmount},{status}";
+            sb.AppendLine(line);
         }
 
-        return uploadedFileUrls;
+        var fileName = $"sync_report_cust_{customerId}_{Guid.NewGuid()}.csv";
+        return await blobService.UploadReportAsync(fileName, sb.ToString());
+    }
+
+    private long Fibonacci(int n)
+    {
+        if (n <= 1) return n;
+        return Fibonacci(n - 1) + Fibonacci(n - 2);
     }
 }

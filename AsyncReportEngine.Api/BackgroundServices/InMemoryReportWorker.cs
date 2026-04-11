@@ -25,19 +25,21 @@ public class InMemoryReportWorker : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        logger.LogInformation("--> [IN-MEMORY WORKER] Запущено. Очікування задач...");
+        int batchSize = 10;
+        var runningTasks = new List<Task>();
 
         await foreach (var message in queue.DequeueAsync(stoppingToken))
         {
-            try
+            runningTasks.Add(ProcessJobAsync(message));
+
+            if (runningTasks.Count >= batchSize)
             {
-                await ProcessJobAsync(message);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"[IN-MEMORY WORKER] Помилка обробки задачі {message.RequestId}");
+                Task completedTask = await Task.WhenAny(runningTasks);
+                runningTasks.Remove(completedTask);
             }
         }
+
+        await Task.WhenAll(runningTasks);
     }
 
     private async Task ProcessJobAsync(ReportGenerationMessage jobData)
@@ -49,6 +51,7 @@ public class InMemoryReportWorker : BackgroundService
         logger.LogInformation($"[IN-MEMORY WORKER] Початок генерації звіту {jobData.RequestId}");
         await repo.UpdateStatusAsync(jobData.RequestId, ReportStatus.Processing);
 
+        Fibonacci(40);
         var orders = await repo.GetOrdersForReportAsync(jobData.StartDate, jobData.EndDate, jobData.PartnerId);
 
         var sb = new StringBuilder();
@@ -74,5 +77,11 @@ public class InMemoryReportWorker : BackgroundService
         });
 
         logger.LogInformation($"[IN-MEMORY WORKER] Звіт {jobData.RequestId} успішно згенеровано! URL: {fileUrl}");
+    }
+
+    private long Fibonacci(int n)
+    {
+        if (n <= 1) return n;
+        return Fibonacci(n - 1) + Fibonacci(n - 2);
     }
 }

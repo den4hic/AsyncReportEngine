@@ -2,9 +2,8 @@
 
 namespace AsyncReportEngine.DataAccess.Abstraction.Repositories;
 
-public interface IProductRepository
+public interface IProductRepository : IRepository<Product>
 {
-    Task<IEnumerable<Product>> GetProductsAsync(int skip, int take);
-    Task<Product?> GetByIdAsync(int id);
+    Task<IEnumerable<Product>> GetPagedProductsAsync(int skip, int take);
     Task<int> GetTotalCountAsync();
 }

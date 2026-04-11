@@ -15,6 +15,8 @@ public class ReportWorker : BackgroundService
     private readonly IServiceScopeFactory scopeFactory;
     private readonly ILogger<ReportWorker> logger;
 
+    private static readonly HttpClient sharedHttpClient = new HttpClient();
+
     public ReportWorker(QueueClient queueClient, IServiceScopeFactory scopeFactory, ILogger<ReportWorker> logger)
     {
         this.queueClient = queueClient;
@@ -25,30 +27,38 @@ public class ReportWorker : BackgroundService
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         logger.LogInformation("--> [WORKER PROJECT] Service is working...");
-
         await queueClient.CreateIfNotExistsAsync(cancellationToken: stoppingToken);
 
         while (!stoppingToken.IsCancellationRequested)
         {
-            QueueMessage[] messages = await queueClient.ReceiveMessagesAsync(maxMessages: 1, visibilityTimeout: TimeSpan.FromMinutes(2), cancellationToken: stoppingToken);
+            QueueMessage[] messages = await queueClient.ReceiveMessagesAsync(
+                maxMessages: 32,
+                visibilityTimeout: TimeSpan.FromMinutes(2),
+                cancellationToken: stoppingToken);
 
             if (messages.Length > 0)
             {
-                var message = messages[0];
-                try
+                logger.LogInformation($"[WORKER] Отримано {messages.Length} завдань. Починаю паралельне завантаження в Blob Storage...");
+
+                var tasks = messages.Select(async message =>
                 {
-                    await ProcessReportJob(message.MessageText);
-                    await queueClient.DeleteMessageAsync(message.MessageId, message.PopReceipt, stoppingToken);
-                    logger.LogInformation($"--> Task {message.MessageId} is done.");
-                }
-                catch (Exception ex)
-                {
-                    logger.LogError(ex, "Failed logic.");
-                }
+                    try
+                    {
+                        await ProcessReportJob(message.MessageText);
+                        await queueClient.DeleteMessageAsync(message.MessageId, message.PopReceipt, stoppingToken);
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogError(ex, $"Помилка обробки: {message.MessageId}");
+                    }
+                });
+
+                await Task.WhenAll(tasks);
+                logger.LogInformation($"[WORKER] Пачка з {messages.Length} завдань завершена!");
             }
             else
             {
-                await Task.Delay(3000, stoppingToken);
+                //await Task.Delay(3000, stoppingToken);
             }
         }
     }
@@ -71,6 +81,7 @@ public class ReportWorker : BackgroundService
             try
             {
                 var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+                Fibonacci(40);
                 var orders = await repo.GetOrdersForReportAsync(jobData.StartDate, jobData.EndDate, jobData.PartnerId);
 
                 logger.LogInformation($"[WORKER] Дані отримано: {orders.Count} рядків. Починаю генерацію CSV...");
@@ -100,11 +111,11 @@ public class ReportWorker : BackgroundService
 
                 try
                 {
-                    using var httpClient = new HttpClient();
                     var apiUrl = $"https://localhost:7193/api/reports/{jobData.RequestId}/notify-ready";
 
                     var content = new StringContent($"{{\"fileUrl\": \"{fileUrl}\"}}", Encoding.UTF8, "application/json");
-                    await httpClient.PostAsync(apiUrl, content);
+
+                    await sharedHttpClient.PostAsync(apiUrl, content);
 
                     logger.LogInformation($"[WORKER] Сигнал SignalR відправлено на API!");
                 }
@@ -121,5 +132,11 @@ public class ReportWorker : BackgroundService
                 await repo.UpdateStatusAsync(jobData.RequestId, ReportStatus.Failed, error: ex.Message);
             }
         }
+    }
+
+    private long Fibonacci(int n)
+    {
+        if (n <= 1) return n;
+        return Fibonacci(n - 1) + Fibonacci(n - 2);
     }
 }
