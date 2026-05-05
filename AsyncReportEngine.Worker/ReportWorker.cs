@@ -80,6 +80,9 @@ public class ReportWorker : BackgroundService
 
         try
         {
+            var startedAt = DateTime.UtcNow;
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+
             await Task.Delay(500);
 
             var orders = await repo.GetOrdersForReportAsync(jobData.StartDate, jobData.EndDate, jobData.PartnerId);
@@ -88,6 +91,8 @@ public class ReportWorker : BackgroundService
             var fileName = $"report_{jobData.PartnerId}_{jobData.RequestId}.csv";
             var fileUrl = await blobService.UploadReportAsync(fileName, csv);
 
+            sw.Stop();
+            await repo.UpdateTimingAsync(jobData.RequestId, startedAt, (int)sw.ElapsedMilliseconds);
             await repo.UpdateStatusAsync(jobData.RequestId, ReportStatus.Completed, fileUrl: fileUrl);
 
             await NotifyApiAsync(jobData.RequestId, fileUrl);

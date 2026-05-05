@@ -1,6 +1,8 @@
-﻿namespace AsyncReportEngine.Services.Abstraction;
+﻿using AsyncReportEngine.Shared.Dtos.Reports;
+
+namespace AsyncReportEngine.Services.Abstraction;
 
 public interface ISyncReportService
 {
-    Task<List<string>> GenerateReportSyncAsync(DateTime startDate, DateTime endDate, List<int> customerIds);
+    Task<SyncReportResult> GenerateReportSyncAsync(DateTime startDate, DateTime endDate, List<int> customerIds);
 }

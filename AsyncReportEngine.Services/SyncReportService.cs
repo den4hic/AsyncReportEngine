@@ -1,8 +1,10 @@
 ﻿using AsyncReportEngine.DataAccess.Abstraction.Repositories;
 using AsyncReportEngine.Services.Abstraction;
+using AsyncReportEngine.Shared.Dtos.Reports;
 using AsyncReportEngine.Shared.Entities;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using System.Diagnostics;
 using System.Text;
 
 namespace AsyncReportEngine.Services;
@@ -19,18 +21,34 @@ public class SyncReportService : ISyncReportService
         this.logger = logger;
     }
 
-    public async Task<List<string>> GenerateReportSyncAsync(DateTime startDate, DateTime endDate, List<int> customerIds)
+    public async Task<SyncReportResult> GenerateReportSyncAsync(DateTime startDate, DateTime endDate, List<int> customerIds)
     {
         logger.LogInformation("[SYNC] Запуск генерації для {Count} клієнтів", customerIds.Count);
+
+        var totalSw = Stopwatch.StartNew();
 
         var tasks = customerIds.Select(id => ProcessSingleCustomerReportAsync(startDate, endDate, id));
         var results = await Task.WhenAll(tasks);
 
-        logger.LogInformation("[SYNC] Завершено. Згенеровано {Count} звітів", results.Length);
-        return results.ToList();
+        totalSw.Stop();
+
+        var totalMs = (int)totalSw.ElapsedMilliseconds;
+        var avgMs = results.Length > 0 ? results.Average(r => r.DurationMs) : 0;
+        var throughput = totalMs > 0 ? results.Length / (totalMs / 1000.0) : 0;
+
+        logger.LogInformation("[SYNC] Завершено {Count} звітів за {TotalMs}ms. Throughput: {Throughput:F2}/s",
+            results.Length, totalMs, throughput);
+
+        return new SyncReportResult
+        {
+            FileUrls = results.Select(r => r.FileUrl).ToList(),
+            TotalDurationMs = totalMs,
+            AvgDurationMs = Math.Round(avgMs, 2),
+            ThroughputPerSec = Math.Round(throughput, 2)
+        };
     }
 
-    private async Task<string> ProcessSingleCustomerReportAsync(DateTime startDate, DateTime endDate, int customerId)
+    private async Task<(string FileUrl, int DurationMs)> ProcessSingleCustomerReportAsync(DateTime startDate, DateTime endDate, int customerId)
     {
         await semaphore.WaitAsync();
         try
@@ -38,6 +56,8 @@ public class SyncReportService : ISyncReportService
             using var scope = scopeFactory.CreateScope();
             var repo = scope.ServiceProvider.GetRequiredService<IReportRepository>();
             var blobService = scope.ServiceProvider.GetRequiredService<IBlobService>();
+
+            var sw = Stopwatch.StartNew();
 
             logger.LogInformation("[SYNC] Початок обробки клієнта {CustomerId}", customerId);
 
@@ -49,8 +69,12 @@ public class SyncReportService : ISyncReportService
             var fileName = $"sync_report_cust_{customerId}_{Guid.NewGuid()}.csv";
             var fileUrl = await blobService.UploadReportAsync(fileName, csv);
 
-            logger.LogInformation("[SYNC] Клієнт {CustomerId} готово. URL: {Url}", customerId, fileUrl);
-            return fileUrl;
+            sw.Stop();
+
+            logger.LogInformation("[SYNC] Клієнт {CustomerId} готово за {Ms}ms. URL: {Url}",
+                customerId, sw.ElapsedMilliseconds, fileUrl);
+
+            return (fileUrl, (int)sw.ElapsedMilliseconds);
         }
         finally
         {

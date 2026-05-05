@@ -53,6 +53,9 @@ public class InMemoryReportWorker : BackgroundService
         logger.LogInformation("[IN-MEMORY] Початок генерації звіту {RequestId}", jobData.RequestId);
         await repo.UpdateStatusAsync(jobData.RequestId, ReportStatus.Processing);
 
+        var startedAt = DateTime.UtcNow;
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+
         await Task.Delay(500);
 
         var orders = await repo.GetOrdersForReportAsync(jobData.StartDate, jobData.EndDate, jobData.PartnerId);
@@ -62,6 +65,8 @@ public class InMemoryReportWorker : BackgroundService
         var fileName = $"in_memory_report_{customerPrefix}{jobData.RequestId}.csv";
         var fileUrl = await blobService.UploadReportAsync(fileName, csv);
 
+        sw.Stop();
+        await repo.UpdateTimingAsync(jobData.RequestId, startedAt, (int)sw.ElapsedMilliseconds);
         await repo.UpdateStatusAsync(jobData.RequestId, ReportStatus.Completed, fileUrl: fileUrl);
 
         await hubContext.Clients.All.SendAsync("ReportReady", new

@@ -19,4 +19,5 @@ public interface IReportRepository
 
     Task<(List<ReportRequest> Items, int TotalCount)> GetRequestsPagedAsync(int skip, int take, ReportStatus? status);
     Task<Dictionary<ReportStatus, int>> GetRequestsStatsAsync();
+    Task UpdateTimingAsync(Guid requestId, DateTime startedAt, int durationMs);
 }

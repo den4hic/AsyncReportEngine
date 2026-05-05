@@ -136,4 +136,16 @@ public class ReportRepository : IReportRepository
             .Select(g => new { Status = g.Key, Count = g.Count() })
             .ToDictionaryAsync(k => k.Status, v => v.Count);
     }
+
+    public async Task UpdateTimingAsync(Guid requestId, DateTime startedAt, int durationMs)
+    {
+        var request = await context.ReportRequests.FindAsync(requestId);
+
+        if (request is null) return;
+
+        request.StartedAt = startedAt;
+        request.DurationMs = durationMs;
+
+        await context.SaveChangesAsync();
+    }
 }

@@ -84,10 +84,11 @@ public static class DependencyInjection
             return new BlobServiceClient(connectionString);
         });
 
+        services.AddSingleton<ISyncReportService, SyncReportService>();
+
         services.AddScoped<IQueueService, QueueService>();
         services.AddScoped<ICatalogService, CatalogService>();
         services.AddScoped<IOrderService, OrderService>();
-        services.AddScoped<ISyncReportService, SyncReportService>();
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IBlobService, BlobService>();
         services.AddScoped<IDashboardService, DashboardService>();

@@ -133,9 +133,15 @@ public class ReportsController : ControllerBase
     [HttpPost("sync-request")]
     public async Task<IActionResult> RequestReportSync([FromBody] CreateReportDto dto)
     {
-        var fileUrls = await syncReportService.GenerateReportSyncAsync(dto.StartDate, dto.EndDate, dto.PartnerIds);
+        var result = await syncReportService.GenerateReportSyncAsync(dto.StartDate, dto.EndDate, dto.PartnerIds);
 
-        return Ok(new { files = fileUrls });
+        return Ok(new
+        {
+            result.FileUrls,
+            result.TotalDurationMs,
+            result.AvgDurationMs,
+            result.ThroughputPerSec
+        });
     }
 
     [HttpPost("bulk-request")]

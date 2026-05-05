@@ -10,4 +10,6 @@ public class ReportRequest
     public DateTime? FinishedAt { get; set; }
     public string? FileUrl { get; set; }
     public string? ErrorMessage { get; set; }
+    public DateTime? StartedAt { get; set; }
+    public int? DurationMs { get; set; }
 }
