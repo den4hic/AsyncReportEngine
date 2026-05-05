@@ -148,4 +148,18 @@ public class ReportRepository : IReportRepository
 
         await context.SaveChangesAsync();
     }
+
+    public async Task CreateRequestWithRunAsync(Guid requestId, string userId, Guid benchmarkRunId)
+    {
+        var request = new ReportRequest
+        {
+            Id = requestId,
+            Status = ReportStatus.Pending,
+            CreatedAt = DateTime.UtcNow,
+            BenchmarkRunId = benchmarkRunId
+        };
+
+        await context.ReportRequests.AddAsync(request);
+        await context.SaveChangesAsync();
+    }
 }

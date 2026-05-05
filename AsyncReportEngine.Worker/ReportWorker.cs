@@ -95,6 +95,12 @@ public class ReportWorker : BackgroundService
             await repo.UpdateTimingAsync(jobData.RequestId, startedAt, (int)sw.ElapsedMilliseconds);
             await repo.UpdateStatusAsync(jobData.RequestId, ReportStatus.Completed, fileUrl: fileUrl);
 
+            if (jobData.BenchmarkRunId.HasValue)
+            {
+                var benchmarkRepo = scope.ServiceProvider.GetRequiredService<IBenchmarkRepository>();
+                await benchmarkRepo.TryCompleteRunAsync(jobData.BenchmarkRunId.Value);
+            }
+
             await NotifyApiAsync(jobData.RequestId, fileUrl);
 
             logger.LogInformation("[AZURE WORKER] Звіт {RequestId} готовий. URL: {Url}", jobData.RequestId, fileUrl);

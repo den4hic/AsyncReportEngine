@@ -19,6 +19,8 @@ public class ReportDbContext : IdentityDbContext<IdentityUser>
     public DbSet<Product> Products { get; set; }
     public DbSet<ProductReview> ProductReviews { get; set; }
 
+    public DbSet<BenchmarkRun> BenchmarkRuns { get; set; }
+
     public DbSet<Customer> Customers { get; set; }
     public DbSet<Address> Addresses { get; set; }
 

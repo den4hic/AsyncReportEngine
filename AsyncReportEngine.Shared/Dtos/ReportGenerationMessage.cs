@@ -7,5 +7,6 @@ public class ReportGenerationMessage
     public DateTime EndDate { get; set; }
     public string UserEmail { get; set; } = string.Empty;
 
+    public Guid? BenchmarkRunId { get; set; }
     public int? PartnerId { get; set; }
 }

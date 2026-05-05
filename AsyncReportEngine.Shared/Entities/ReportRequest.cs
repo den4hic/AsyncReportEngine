@@ -12,4 +12,5 @@ public class ReportRequest
     public string? ErrorMessage { get; set; }
     public DateTime? StartedAt { get; set; }
     public int? DurationMs { get; set; }
+    public Guid? BenchmarkRunId { get; set; }
 }

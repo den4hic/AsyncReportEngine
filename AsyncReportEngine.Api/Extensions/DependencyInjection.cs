@@ -86,6 +86,7 @@ public static class DependencyInjection
 
         services.AddSingleton<ISyncReportService, SyncReportService>();
 
+        services.AddScoped<IBenchmarkService, BenchmarkService>();
         services.AddScoped<IQueueService, QueueService>();
         services.AddScoped<ICatalogService, CatalogService>();
         services.AddScoped<IOrderService, OrderService>();
@@ -97,6 +98,7 @@ public static class DependencyInjection
 
         services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
 
+        services.AddScoped<IBenchmarkRepository, BenchmarkRepository>();
         services.AddScoped<IReportRepository, ReportRepository>();
         services.AddScoped<IProductRepository, ProductRepository>();
         services.AddScoped<IDashboardRepository, DashboardRepository>();
