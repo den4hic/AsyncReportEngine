@@ -8,4 +8,5 @@ public interface IBenchmarkRepository
     Task<BenchmarkRun?> GetRunAsync(Guid runId);
     Task<List<BenchmarkRun>> GetHistoryAsync(int take = 20);
     Task TryCompleteRunAsync(Guid runId);
+    Task CompleteRunAsync(Guid runId, int totalDurationMs, double avgDurationMs, double throughputPerSec);
 }

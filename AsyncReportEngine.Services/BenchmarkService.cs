@@ -29,11 +29,15 @@ public class BenchmarkService : IBenchmarkService
 
     public async Task<BenchmarkRunDto> RunSyncBenchmarkAsync(BenchmarkRequestDto dto)
     {
+        var runId = await benchmarkRepository.CreateRunAsync("Sync", dto.PartnerIds.Count);
+
         var result = await syncReportService.GenerateReportSyncAsync(dto.StartDate, dto.EndDate, dto.PartnerIds);
+
+        await benchmarkRepository.CompleteRunAsync(runId, result.TotalDurationMs, result.AvgDurationMs, result.ThroughputPerSec);
 
         return new BenchmarkRunDto
         {
-            Id = Guid.NewGuid(),
+            Id = runId,
             Approach = "Sync",
             RequestedCount = dto.PartnerIds.Count,
             Status = "Completed",
@@ -44,7 +48,6 @@ public class BenchmarkService : IBenchmarkService
             ThroughputPerSec = result.ThroughputPerSec
         };
     }
-
     public async Task<Guid> RunAsyncBenchmarkAsync(BenchmarkRequestDto dto, string userId)
     {
         var runId = await benchmarkRepository.CreateRunAsync(dto.Approach, dto.PartnerIds.Count);

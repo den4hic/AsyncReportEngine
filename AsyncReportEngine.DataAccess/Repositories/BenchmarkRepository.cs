@@ -72,4 +72,18 @@ public class BenchmarkRepository : IBenchmarkRepository
 
         await context.SaveChangesAsync();
     }
+
+    public async Task CompleteRunAsync(Guid runId, int totalDurationMs, double avgDurationMs, double throughputPerSec)
+    {
+        var run = await context.BenchmarkRuns.FindAsync(runId);
+        if (run is null) return;
+
+        run.Status = "Completed";
+        run.CompletedAt = DateTime.UtcNow;
+        run.TotalDurationMs = totalDurationMs;
+        run.AvgDurationMs = avgDurationMs;
+        run.ThroughputPerSec = throughputPerSec;
+
+        await context.SaveChangesAsync();
+    }
 }
