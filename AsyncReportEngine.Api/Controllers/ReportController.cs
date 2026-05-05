@@ -173,15 +173,6 @@ public class ReportsController : ControllerBase
             Tasks = generatedRequests
         });
     }
-
-    //[HttpGet("history")]
-    //public async Task<IActionResult> GetRecentReportsHistory([FromQuery] int take = 50)
-    //{
-    //    var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "anonymous_user";
-
-    //    var history = await historyService.GetUserHistoryAsync(userId, take);
-    //    return Ok(history);
-    //}
      
     [HttpGet("history")]
     public async Task<IActionResult> GetHistoryPaged(

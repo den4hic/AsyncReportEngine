@@ -2,6 +2,7 @@
 using AsyncReportEngine.DataAccess.Abstraction.Repositories;
 using AsyncReportEngine.Services.Abstraction;
 using AsyncReportEngine.Shared.Dtos;
+using AsyncReportEngine.Shared.Entities;
 using AsyncReportEngine.Shared.Enum;
 using Microsoft.AspNetCore.SignalR;
 using System.Text;
@@ -15,6 +16,8 @@ public class InMemoryReportWorker : BackgroundService
     private readonly ILogger<InMemoryReportWorker> logger;
     private readonly IHubContext<ReportHub> hubContext;
 
+    private const int BatchSize = 10;
+
     public InMemoryReportWorker(IInMemoryQueue queue, IServiceScopeFactory scopeFactory, ILogger<InMemoryReportWorker> logger, IHubContext<ReportHub> hubContext)
     {
         this.queue = queue;
@@ -25,17 +28,16 @@ public class InMemoryReportWorker : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        int batchSize = 10;
         var runningTasks = new List<Task>();
 
         await foreach (var message in queue.DequeueAsync(stoppingToken))
         {
             runningTasks.Add(ProcessJobAsync(message));
 
-            if (runningTasks.Count >= batchSize)
+            if (runningTasks.Count >= BatchSize)
             {
-                Task completedTask = await Task.WhenAny(runningTasks);
-                runningTasks.Remove(completedTask);
+                var completed = await Task.WhenAny(runningTasks);
+                runningTasks.Remove(completed);
             }
         }
 
@@ -48,25 +50,17 @@ public class InMemoryReportWorker : BackgroundService
         var repo = scope.ServiceProvider.GetRequiredService<IReportRepository>();
         var blobService = scope.ServiceProvider.GetRequiredService<IBlobService>();
 
-        logger.LogInformation($"[IN-MEMORY WORKER] Початок генерації звіту {jobData.RequestId}");
+        logger.LogInformation("[IN-MEMORY] Початок генерації звіту {RequestId}", jobData.RequestId);
         await repo.UpdateStatusAsync(jobData.RequestId, ReportStatus.Processing);
 
-        Fibonacci(40);
-        var orders = await repo.GetOrdersForReportAsync(jobData.StartDate, jobData.EndDate, jobData.PartnerId);
+        await Task.Delay(500);
 
-        var sb = new StringBuilder();
-        sb.AppendLine("OrderId,Date,Customer,TotalAmount,Status");
-        foreach (var order in orders)
-        {
-            var status = order.Transactions != null && order.Transactions.Any() ? "Paid" : "Unpaid";
-            var customerName = order.Customer != null ? $"{order.Customer.FirstName} {order.Customer.LastName}" : "Unknown";
-            sb.AppendLine($"{order.Id},{order.OrderDate:yyyy-MM-dd},{customerName},{order.TotalAmount},{status}");
-        }
+        var orders = await repo.GetOrdersForReportAsync(jobData.StartDate, jobData.EndDate, jobData.PartnerId);
+        var csv = BuildCsv(orders, jobData.PartnerId);
 
         var customerPrefix = jobData.PartnerId.HasValue ? $"customer_{jobData.PartnerId}_" : "all_";
         var fileName = $"in_memory_report_{customerPrefix}{jobData.RequestId}.csv";
-
-        var fileUrl = await blobService.UploadReportAsync(fileName, sb.ToString());
+        var fileUrl = await blobService.UploadReportAsync(fileName, csv);
 
         await repo.UpdateStatusAsync(jobData.RequestId, ReportStatus.Completed, fileUrl: fileUrl);
 
@@ -76,12 +70,24 @@ public class InMemoryReportWorker : BackgroundService
             FileUrl = fileUrl
         });
 
-        logger.LogInformation($"[IN-MEMORY WORKER] Звіт {jobData.RequestId} успішно згенеровано! URL: {fileUrl}");
+        logger.LogInformation("[IN-MEMORY] Звіт {RequestId} готовий. URL: {Url}", jobData.RequestId, fileUrl);
     }
 
-    private long Fibonacci(int n)
+    private static string BuildCsv(IEnumerable<Order> orders, int? partnerId)
     {
-        if (n <= 1) return n;
-        return Fibonacci(n - 1) + Fibonacci(n - 2);
+        var sb = new StringBuilder();
+        sb.AppendLine("OrderId,Date,Customer,TotalAmount,Status");
+
+        foreach (var order in orders)
+        {
+            var status = order.Transactions != null && order.Transactions.Any() ? "Paid" : "Unpaid";
+            var customer = order.Customer is not null
+                ? $"{order.Customer.FirstName} {order.Customer.LastName}"
+                : "Unknown";
+
+            sb.AppendLine($"{order.Id},{order.OrderDate:yyyy-MM-dd},{customer},{order.TotalAmount},{status}");
+        }
+
+        return sb.ToString();
     }
 }

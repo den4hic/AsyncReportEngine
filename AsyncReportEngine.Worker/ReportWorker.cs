@@ -1,6 +1,7 @@
 ﻿using AsyncReportEngine.DataAccess.Abstraction.Repositories;
 using AsyncReportEngine.Services.Abstraction;
 using AsyncReportEngine.Shared.Dtos;
+using AsyncReportEngine.Shared.Entities;
 using AsyncReportEngine.Shared.Enum;
 using Azure.Storage.Queues;
 using Azure.Storage.Queues.Models;
@@ -14,129 +15,120 @@ public class ReportWorker : BackgroundService
     private readonly QueueClient queueClient;
     private readonly IServiceScopeFactory scopeFactory;
     private readonly ILogger<ReportWorker> logger;
+    private readonly IConfiguration config;
 
-    private static readonly HttpClient sharedHttpClient = new HttpClient();
+    private static readonly HttpClient httpClient = new HttpClient();
 
-    public ReportWorker(QueueClient queueClient, IServiceScopeFactory scopeFactory, ILogger<ReportWorker> logger)
+    public ReportWorker(QueueClient queueClient, IServiceScopeFactory scopeFactory, ILogger<ReportWorker> logger, IConfiguration config)
     {
         this.queueClient = queueClient;
         this.scopeFactory = scopeFactory;
         this.logger = logger;
+        this.config = config;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        logger.LogInformation("--> [WORKER PROJECT] Service is working...");
+        logger.LogInformation("[AZURE WORKER] Сервіс запущено");
         await queueClient.CreateIfNotExistsAsync(cancellationToken: stoppingToken);
 
         while (!stoppingToken.IsCancellationRequested)
         {
             QueueMessage[] messages = await queueClient.ReceiveMessagesAsync(
-                maxMessages: 32,
+                maxMessages: 10,
                 visibilityTimeout: TimeSpan.FromMinutes(2),
                 cancellationToken: stoppingToken);
 
-            if (messages.Length > 0)
+            if (messages.Length == 0)
             {
-                logger.LogInformation($"[WORKER] Отримано {messages.Length} завдань. Починаю паралельне завантаження в Blob Storage...");
+                await Task.Delay(3000, stoppingToken);
+                continue;
+            }
 
-                var tasks = messages.Select(async message =>
+            logger.LogInformation("[AZURE WORKER] Отримано {Count} повідомлень", messages.Length);
+
+            var tasks = messages.Select(async message =>
+            {
+                try
                 {
-                    try
-                    {
-                        await ProcessReportJob(message.MessageText);
-                        await queueClient.DeleteMessageAsync(message.MessageId, message.PopReceipt, stoppingToken);
-                    }
-                    catch (Exception ex)
-                    {
-                        logger.LogError(ex, $"Помилка обробки: {message.MessageId}");
-                    }
-                });
+                    await ProcessReportJob(message.MessageText);
+                    await queueClient.DeleteMessageAsync(message.MessageId, message.PopReceipt, stoppingToken);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "[AZURE WORKER] Помилка обробки повідомлення {MessageId}", message.MessageId);
+                }
+            });
 
-                await Task.WhenAll(tasks);
-                logger.LogInformation($"[WORKER] Пачка з {messages.Length} завдань завершена!");
-            }
-            else
-            {
-                //await Task.Delay(3000, stoppingToken);
-            }
+            await Task.WhenAll(tasks);
+            logger.LogInformation("[AZURE WORKER] Пачка завершена");
         }
     }
 
     private async Task ProcessReportJob(string base64Message)
     {
-        var jsonBytes = Convert.FromBase64String(base64Message);
-        var jsonString = Encoding.UTF8.GetString(jsonBytes);
-        var jobData = JsonSerializer.Deserialize<ReportGenerationMessage>(jsonString);
+        var json = Encoding.UTF8.GetString(Convert.FromBase64String(base64Message));
+        var jobData = JsonSerializer.Deserialize<ReportGenerationMessage>(json);
+        if (jobData is null) return;
 
-        if (jobData == null) return;
+        using var scope = scopeFactory.CreateScope();
+        var repo = scope.ServiceProvider.GetRequiredService<IReportRepository>();
+        var blobService = scope.ServiceProvider.GetRequiredService<IBlobService>();
 
-        using (var scope = scopeFactory.CreateScope())
+        logger.LogInformation("[AZURE WORKER] Початок обробки {RequestId}", jobData.RequestId);
+        await repo.UpdateStatusAsync(jobData.RequestId, ReportStatus.Processing);
+
+        try
         {
-            var repo = scope.ServiceProvider.GetRequiredService<IReportRepository>();
+            await Task.Delay(500);
 
-            logger.LogInformation($"[WORKER] 1. Отримую дані для запиту {jobData.RequestId}...");
-            await repo.UpdateStatusAsync(jobData.RequestId, ReportStatus.Processing);
+            var orders = await repo.GetOrdersForReportAsync(jobData.StartDate, jobData.EndDate, jobData.PartnerId);
+            var csv = BuildCsv(orders);
 
-            try
-            {
-                var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-                Fibonacci(40);
-                var orders = await repo.GetOrdersForReportAsync(jobData.StartDate, jobData.EndDate, jobData.PartnerId);
+            var fileName = $"report_{jobData.PartnerId}_{jobData.RequestId}.csv";
+            var fileUrl = await blobService.UploadReportAsync(fileName, csv);
 
-                logger.LogInformation($"[WORKER] Дані отримано: {orders.Count} рядків. Починаю генерацію CSV...");
+            await repo.UpdateStatusAsync(jobData.RequestId, ReportStatus.Completed, fileUrl: fileUrl);
 
-                var sb = new StringBuilder();
-                sb.AppendLine("OrderId,Date,Customer,TotalAmount,Status");
+            await NotifyApiAsync(jobData.RequestId, fileUrl);
 
-                foreach (var order in orders)
-                {
-                    var status = order.Transactions.Any() ? "Paid" : "Unpaid";
-                    var line = $"{order.Id},{order.OrderDate:yyyy-MM-dd},{order.Customer?.FirstName} {order.Customer?.LastName},{order.TotalAmount},{status}";
-                    sb.AppendLine(line);
-                }
-
-                var fileName = $"report_{jobData.PartnerId}_{jobData.RequestId}.csv";
-
-                var blobService = scope.ServiceProvider.GetRequiredService<IBlobService>();
-
-                logger.LogInformation($"[WORKER] Починаю завантаження {fileName} в Azure Blob Storage...");
-
-                var fileUrl = await blobService.UploadReportAsync(fileName, sb.ToString());
-
-                stopwatch.Stop();
-                var resultInfo = $"Звіт готовий! Розмір: {orders.Count} рядків. Час: {stopwatch.Elapsed.TotalSeconds:F2} сек.";
-
-                await repo.UpdateStatusAsync(jobData.RequestId, ReportStatus.Completed, fileUrl: fileUrl);
-
-                try
-                {
-                    var apiUrl = $"https://localhost:7193/api/reports/{jobData.RequestId}/notify-ready";
-
-                    var content = new StringContent($"{{\"fileUrl\": \"{fileUrl}\"}}", Encoding.UTF8, "application/json");
-
-                    await sharedHttpClient.PostAsync(apiUrl, content);
-
-                    logger.LogInformation($"[WORKER] Сигнал SignalR відправлено на API!");
-                }
-                catch (Exception ex)
-                {
-                    logger.LogError(ex, "[WORKER] Не вдалося відправити сповіщення на API.");
-                }
-
-                logger.LogInformation($"[WORKER] {resultInfo} | URL: {fileUrl}");
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Помилка генерації звіту");
-                await repo.UpdateStatusAsync(jobData.RequestId, ReportStatus.Failed, error: ex.Message);
-            }
+            logger.LogInformation("[AZURE WORKER] Звіт {RequestId} готовий. URL: {Url}", jobData.RequestId, fileUrl);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "[AZURE WORKER] Помилка генерації звіту {RequestId}", jobData.RequestId);
+            await repo.UpdateStatusAsync(jobData.RequestId, ReportStatus.Failed, error: ex.Message);
         }
     }
 
-    private long Fibonacci(int n)
+    private async Task NotifyApiAsync(Guid requestId, string fileUrl)
     {
-        if (n <= 1) return n;
-        return Fibonacci(n - 1) + Fibonacci(n - 2);
+        try
+        {
+            var apiBase = config["ApiBaseUrl"] ?? "https://localhost:7193";
+            var url = $"{apiBase}/api/reports/{requestId}/notify-ready";
+            var body = new StringContent($"{{\"fileUrl\":\"{fileUrl}\"}}", Encoding.UTF8, "application/json");
+            await httpClient.PostAsync(url, body);
+            logger.LogInformation("[AZURE WORKER] SignalR нотифікацію надіслано");
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "[AZURE WORKER] Не вдалося надіслати нотифікацію");
+        }
+    }
+
+    private static string BuildCsv(IEnumerable<Order> orders)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("OrderId,Date,Customer,TotalAmount,Status");
+
+        foreach (var order in orders)
+        {
+            var status = order.Transactions.Any() ? "Paid" : "Unpaid";
+            var customer = $"{order.Customer?.FirstName} {order.Customer?.LastName}".Trim();
+            sb.AppendLine($"{order.Id},{order.OrderDate:yyyy-MM-dd},{customer},{order.TotalAmount},{status}");
+        }
+
+        return sb.ToString();
     }
 }
